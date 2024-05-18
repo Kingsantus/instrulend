@@ -4,12 +4,18 @@ from .config.config import config_dict
 from .utils import db
 from .models.users import User
 from .models.post import Post
+from .models.enum import State
+from .models.enum import Category
+from .models.enum import Country
+from .models.enum import Type
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from .route.post.views import post_namespace
 from .route.auth.views import auth_namespace
 from .route.review.views import review_namespace
 from .route.socketio.views import message_namespace
+from .route.country.views import country_namespace
+from .route.category.views import category_namespace
 
 def create_app(config=config_dict['dev']):
     app=Flask(__name__)
@@ -22,8 +28,10 @@ def create_app(config=config_dict['dev']):
 
     api=Api(app)
 
-    api.add_namespace(post_namespace, path='/instrument')
     api.add_namespace(auth_namespace, path='/auth')
+    api.add_namespace(category_namespace, path='/v1')
+    api.add_namespace(country_namespace, path='/v2')
+    api.add_namespace(post_namespace, path='/instrument')
     api.add_namespace(review_namespace, path='/review')
     api.add_namespace(message_namespace, path='/message')
 
@@ -34,7 +42,11 @@ def create_app(config=config_dict['dev']):
         return {
             'db': db, 
             'User': User, 
-            'Post': Post
+            'Post': Post,
+            'State': State,
+            'Country': Country,
+            'Category': Category,
+            'Type': Type,
         }
 
     return app
