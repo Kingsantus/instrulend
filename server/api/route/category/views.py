@@ -40,7 +40,7 @@ class CreateGetCategory(Resource):
         username = get_jwt_identity()
         current_user = User.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         data = category_namespace.payload
@@ -64,7 +64,7 @@ class DelUpdateCategory(Resource):
 
         current_user = User.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         category = Category.get_by_id(category_id)
@@ -92,7 +92,7 @@ class CreateGetTypes(Resource):
         username = get_jwt_identity()
         current_user = User.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         data = category_namespace.payload
@@ -117,7 +117,7 @@ class DelUpdateTypes(Resource):
 
         current_user = User.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         type = Type.get_by_id(type_id)

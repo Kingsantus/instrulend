@@ -1,10 +1,12 @@
 from flask_restx import Namespace, Resource, fields
-from flask import request
+from flask import request, current_app
 from ...models.users import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from http import HTTPStatus
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from flask_login import logout_user
+from werkzeug.utils import secure_filename
+import os
 
 
 auth_namespace = Namespace('auth', description='A namespace for authentication')
@@ -18,7 +20,25 @@ signup_model=auth_namespace.model(
         'confirmPassword':fields.String(required=True, description='Confirm Password'),
         'first_name':fields.String(required=True, description='First name'),
         'last_name':fields.String(required=True, description='Last name'),
-        'phonenumber':fields.String(required=True, description='Phone number')
+        'phonenumber':fields.String(required=True, description='Phone number'),
+        'country_id': fields.Integer(required=True, description='users country'),
+        'state_id': fields.Integer(required=True, description='state of user')
+    }
+)
+
+admin_model=auth_namespace.model(
+    'SignUp',{
+        'id':fields.Integer(),
+        'username':fields.String(required=True, description='Username'),
+        'email':fields.String(required=True, description='Email'),
+        'password':fields.String(required=True, description='Password'),
+        'confirmPassword':fields.String(required=True, description='Confirm Password'),
+        'first_name':fields.String(required=True, description='First name'),
+        'last_name':fields.String(required=True, description='Last name'),
+        'phonenumber':fields.String(required=True, description='Phone number'),
+        'country_id': fields.Integer(required=True, description='users country'),
+        'state_id': fields.Integer(required=True, description='state of user'),
+        'is_admin': fields.Boolean(required=True, description='if user is admin')
     }
 )
 
@@ -27,14 +47,13 @@ user_model=auth_namespace.model(
         'id':fields.Integer(),
         'username':fields.String(required=True, description='Username'),
         'email':fields.String(required=True, description='Email'),
-        'password_hash':fields.String(required=True, description='Password'),
         'first_name':fields.String(required=True, description='First name'),
         'last_name':fields.String(required=True, description='Last name'),
         'phonenumber':fields.String(required=True, description='Phone number'),
-        'country':fields.String(description='Country'),
+        'country':fields.Integer(description='Country'),
         'image_file':fields.String(description='Image file'),
         'is_active':fields.Boolean(description='Is active'),
-        'state':fields.String(description='State'),
+        'state':fields.Integer(description='State'),
         'is_admin':fields.Boolean(description='Is admin'),
         'date_created':fields.String(description='Date created'),
         'is_verified':fields.Boolean(description='Is verified'),
@@ -54,8 +73,8 @@ user_update_model = auth_namespace.model(
         'first_name': fields.String(description='First name'),
         'last_name': fields.String(description='Last name'),
         'phonenumber': fields.String(description='Phone number'),
-        'country': fields.String(description='Country'),
-        'state': fields.String(description='State'),
+        'country': fields.Integer(description='Country'),
+        'state': fields.Integer(description='State'),
         'image_file': fields.String(description='Image file')
     }
 )
@@ -67,6 +86,12 @@ admin_update_model = auth_namespace.model(
         'is_banned': fields.Boolean(description='Banned status')
     }
 )
+
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @auth_namespace.route('/signup/')
 class Signup(Resource):
@@ -102,6 +127,52 @@ class Signup(Resource):
             firstname=data.get('first_name'),
             lastname=data.get('last_name'),
             phonenumber=data.get('phonenumber'),
+            country_id=data.get('country_id'),
+            state_id=data.get('state_id'),
+            is_admin=data.get('is_admin'),
+        )
+
+        new_user.save()
+
+        return new_user, HTTPStatus.CREATED
+    
+@auth_namespace.route('/admin/signup/')
+class Signup(Resource):
+    @auth_namespace.expect(admin_model)
+    @auth_namespace.marshal_with(admin_model)
+    def post(self):
+        """Create a new user"""
+        data = request.get_json()
+
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        confirm_password = data.get('confirmPassword')
+        phonenumber = data.get('phonenumber')
+
+        # Check if passwords match
+        if password != confirm_password:
+            return {'message': 'Passwords do not match'}, HTTPStatus.BAD_REQUEST
+
+        # Check if username, email, or phonenumber already exist
+        if User.query.filter_by(username=username).first():
+            return {'message': 'Username already exists'}, HTTPStatus.BAD_REQUEST
+        if User.query.filter_by(email=email).first():
+            return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
+        if User.query.filter_by(phonenumber=phonenumber).first():
+            return {'message': 'Phone number already exists'}, HTTPStatus.BAD_REQUEST
+        
+        # Create new user
+        new_user = User(
+            username=data.get('username'),
+            email=data.get('email'),
+            password_hash=generate_password_hash(data.get('password')),
+            firstname=data.get('first_name'),
+            lastname=data.get('last_name'),
+            phonenumber=data.get('phonenumber'),
+            country_id=data.get('country_id'),
+            state_id=data.get('state_id'),
+            is_admin=data.get('is_admin'),
         )
 
         new_user.save()
@@ -174,9 +245,10 @@ class Refresh(Resource):
     
 @auth_namespace.route('/update/')
 class UpdateUser(Resource):
-    @jwt_required()
+    
     @auth_namespace.expect(user_update_model)
     @auth_namespace.marshal_with(user_model)
+    @jwt_required()
     def put(self):
         """Update a user"""
         username=get_jwt_identity()
@@ -193,7 +265,14 @@ class UpdateUser(Resource):
         user.phonenumber = data.get('phonenumber', user.phonenumber)
         user.country = data.get('country', user.country)
         user.state = data.get('state', user.state)
-        user.image_file = data.get('image_file', user.image_file)
+
+        if 'image_file' in request.files:
+            file = request.files['image_file']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                user.image_file = filename  
 
         # Commit the changes to the database
         user.save()
@@ -202,8 +281,9 @@ class UpdateUser(Resource):
     
 @auth_namespace.route('/admin/update/<int:user_id>/')
 class AdminUpdateUser(Resource):
-    @jwt_required()
+    
     @auth_namespace.expect(admin_update_model)
+    @jwt_required()
     def put(self, user_id):
         """Admin update user information"""
         # Here you should check if the current user is an admin
@@ -231,4 +311,3 @@ class AdminUpdateUser(Resource):
         user.save()
 
         return {'message': 'User information updated successfully'}, HTTPStatus.OK
-

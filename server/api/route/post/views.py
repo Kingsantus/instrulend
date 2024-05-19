@@ -7,15 +7,17 @@ from ...utils import db
 
 post_namespace = Namespace('post', description="Name of the post")
 
+
+
 post_model = post_namespace.model(
     'Post',{
         'id': fields.Integer(description='ID of the post'),
         'title': fields.String(description='Title of the post', required=True),
         'description': fields.String(description='Body of the post', required=True),
-        'author': fields.String(description='Author of the post', required=True),
-        'state': fields.String(description='State of the post'),
-        'category': fields.String(description='Category of the post', required=True, enum=['INSTRUMENTS','CLOTHES', 'ELECTRONIC']), 
-        'instrument': fields.String(description='type of instrument', required=True, enum=['GUITER', 'DRUMS', 'KEYBOARD', 'BASS', 'VOCAL']),
+        'author': fields.Integer(description='Author of the post', required=True),
+        'state_id': fields.Integer(description='State of the post', required=True),
+        'category_id': fields.Integer(description='Category of the post', required=True), 
+        'type_id': fields.Integer(description='type of instrument', required=True),
         'price': fields.Integer(description='Price of rental',required=True),
         'image_file': fields.String(description='Image file',required=True),
         'available': fields.Boolean(description='Available'),
@@ -28,10 +30,10 @@ create_post_model = post_namespace.model(
         'id': fields.Integer(description='ID of the post'),
         'title': fields.String(description='Title of the post', required=True),
         'description': fields.String(description='Body of the post', required=True),
-        'author': fields.String(description='Author of the post', required=True),
-        'state': fields.String(description='State of the post'),
-        'category': fields.String(description='Category of the post', required=True, enum=['INSTRUMENTS','CLOTHES', 'ELECTRONIC']), 
-        'instrument': fields.String(description='type of instrument', required=True, enum=['GUITER', 'DRUMS', 'KEYBOARD', 'BASS', 'VOCAL']),
+        'author': fields.Integer(description='Author of the post', required=True),
+        'state_id': fields.Integer(description='State of the post', required=True),
+        'category_id': fields.Integer(description='Category of the post', required=True), 
+        'type_id': fields.Integer(description='type of instrument', required=True),
         'price': fields.Integer(description='Price of rental',required=True),
         'image_file': fields.String(description='Image file',required=True),
     }
@@ -54,15 +56,17 @@ class PostList(Resource):
         """Create a new post"""
         username = get_jwt_identity()
         current_user = User.query.filter_by(username=username).first()
+        if not current_user:
+            return {"message": "User not found"}, HTTPStatus.UNAUTHORIZED
 
         data = post_namespace.payload
 
         new_post = Post(
             title=data['title'],
             description=data['description'],
-            state=data['state'],
-            category=data['category'],
-            instrument=data['instrument'],
+            state_id=data['state_id'],
+            category_id=data['category_id'],
+            type_id=data['type_id'],
             price=data['price'],
             image_file=data['image_file']
         )
