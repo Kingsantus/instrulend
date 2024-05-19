@@ -15,6 +15,7 @@ class Post(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     rented = db.relationship('Agreement', backref='author5', lazy=True)
     date_posted = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    reviewpost = db.relationship('PostReview', backref='reviewpost', lazy=True)
 
     def __repr__(self):
         return f'<Post {self.id}>'

@@ -26,6 +26,7 @@ class User(db.Model):
     chats_user1 = db.relationship('Chat', backref='user1', foreign_keys='Chat.user1_id', lazy=True)
     chats_user2 = db.relationship('Chat', backref='user2', foreign_keys='Chat.user2_id', lazy=True)
     message = db.relationship('Message', backref='author7', lazy=True)
+    postreview = db.relationship('PostReview', backref='postreview', lazy=True)
 
 
 

@@ -38,3 +38,19 @@ class Experience(db.Model):
     def save(self):
         db.session.add(self)
         db.session.commit()
+
+class PostReview(db.Model):
+    __tablename__ = 'postreview'
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String(150), nullable=False)
+    star_rating = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False)
+    date_created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"Review('{self.content}')"
+    
+    def save(self):
+        db.session.add(self)
+        db.session.commit()

@@ -7,9 +7,14 @@ class Chat(db.Model):
     user1_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user2_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     messages = db.relationship('Message', backref='chat', lazy=True)
+    date_created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def save(self):
         db.session.add(self)
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
         db.session.commit()
 
 class Message(db.Model):
@@ -20,6 +25,16 @@ class Message(db.Model):
     content = db.Column(db.Text)
     date_created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
+    def __repr__(self):
+        return f"Message('{self.content}')"
+    
     def save(self):
         db.session.add(self)
+        db.session.commit()
+
+    def update(self):
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
         db.session.commit()
