@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 from ...models.enum import Category, Type
-from ...models.users import User
+from ...models.admin import Admin
 from http import HTTPStatus
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -38,15 +38,20 @@ class CreateGetCategory(Resource):
     def post(self):
         """Creating a new category"""
         username = get_jwt_identity()
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
         if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         data = category_namespace.payload
+        required_fields = ['name']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
 
         new_post = Category(
-            name = data['name']
+            name = data['name'].lower()
         )
 
         new_post.save()
@@ -62,7 +67,7 @@ class DelUpdateCategory(Resource):
         """Deleting a category"""
         username = get_jwt_identity()
 
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
         if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
@@ -90,16 +95,29 @@ class CreateGetTypes(Resource):
     def post(self):
         """Creating a new type"""
         username = get_jwt_identity()
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
         if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         data = category_namespace.payload
+        
+        required_fields = ['name', 'category_id']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
+
+        
+        category = data['category_id']
+        category_id = Category.query.filter_by(id=category).first()
+        if category_id is None:
+            return {"Message":"The Country don't exist"}, HTTPStatus.NOT_FOUND
+        
 
         new_post = Type(
-            name = data['name'],
-            category_id = data['category_id']
+            name = data['name'].lower(),
+            category_id = category_id.id
         )
 
         new_post.save()
@@ -115,7 +133,7 @@ class DelUpdateTypes(Resource):
         """Deleting a type"""
         username = get_jwt_identity()
 
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
         if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN

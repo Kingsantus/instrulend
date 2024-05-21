@@ -1,6 +1,7 @@
 from flask_restx import Namespace, Resource, fields
 from flask import request, current_app
 from ...models.users import User
+from ...models.admin import Admin
 from werkzeug.security import generate_password_hash, check_password_hash
 from http import HTTPStatus
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
@@ -35,9 +36,6 @@ admin_model=auth_namespace.model(
         'confirmPassword':fields.String(required=True, description='Confirm Password'),
         'first_name':fields.String(required=True, description='First name'),
         'last_name':fields.String(required=True, description='Last name'),
-        'phonenumber':fields.String(required=True, description='Phone number'),
-        'country_id': fields.Integer(required=True, description='users country'),
-        'state_id': fields.Integer(required=True, description='state of user'),
         'is_admin': fields.Boolean(required=True, description='if user is admin')
     }
 )
@@ -81,7 +79,6 @@ user_update_model = auth_namespace.model(
 
 admin_update_model = auth_namespace.model(
     'AdminUpdate', {
-        'is_admin': fields.Boolean(description='Admin status'),
         'is_verified': fields.Boolean(description='Verified status'),
         'is_banned': fields.Boolean(description='Banned status')
     }
@@ -148,30 +145,24 @@ class Signup(Resource):
         email = data.get('email')
         password = data.get('password')
         confirm_password = data.get('confirmPassword')
-        phonenumber = data.get('phonenumber')
 
         # Check if passwords match
         if password != confirm_password:
             return {'message': 'Passwords do not match'}, HTTPStatus.BAD_REQUEST
 
         # Check if username, email, or phonenumber already exist
-        if User.query.filter_by(username=username).first():
+        if Admin.query.filter_by(username=username).first():
             return {'message': 'Username already exists'}, HTTPStatus.BAD_REQUEST
-        if User.query.filter_by(email=email).first():
+        if Admin.query.filter_by(email=email).first():
             return {'message': 'Email already exists'}, HTTPStatus.BAD_REQUEST
-        if User.query.filter_by(phonenumber=phonenumber).first():
-            return {'message': 'Phone number already exists'}, HTTPStatus.BAD_REQUEST
         
         # Create new user
-        new_user = User(
+        new_user = Admin(
             username=data.get('username'),
             email=data.get('email'),
             password_hash=generate_password_hash(data.get('password')),
             firstname=data.get('first_name'),
             lastname=data.get('last_name'),
-            phonenumber=data.get('phonenumber'),
-            country_id=data.get('country_id'),
-            state_id=data.get('state_id'),
             is_admin=data.get('is_admin'),
         )
 
@@ -186,6 +177,11 @@ class Login(Resource):
         """Authenticate user using JWT authentication"""
 
         data = request.get_json()
+        required_fields = ['login', 'password']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
 
         login = data.get('login')
         password = data.get('password')
@@ -211,6 +207,63 @@ class Login(Resource):
 
         return response, HTTPStatus.OK
     
+@auth_namespace.route('/admin/login/')
+class Login(Resource):
+    @auth_namespace.expect(login_model)
+    def post(self):
+        """Authenticate user using JWT authentication"""
+
+        data = request.get_json()
+        required_fields = ['login', 'password']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
+
+        login = data.get('login')
+        password = data.get('password')
+
+        user=Admin.query.filter((Admin.username == login) | (Admin.email == login)).first()
+
+        if user is None:
+            return {'message': 'Invalid username or email'}, HTTPStatus.UNAUTHORIZED
+
+        if not check_password_hash(user.password_hash, password):
+            return {'message': 'Invalid password'}, HTTPStatus.UNAUTHORIZED
+
+        access_token = create_access_token(identity=user.username)
+        refresh_token = create_refresh_token(identity=user.username)
+
+        response = {
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }
+
+        return response, HTTPStatus.OK
+    
+@auth_namespace.route('/admin/logout/')
+class Logout(Resource):
+    @jwt_required()
+    def post(self):
+        """Log out user"""
+        username=get_jwt_identity()
+
+        # Fetch the current user's data from the database
+        user = Admin.query.filter_by(username=username).first()
+
+        if user:
+            # Set the user's is_active field to False
+            user.is_active = False
+            user.save()
+
+        get_token = get_jwt()
+        
+        logout_user(get_token)
+        # Return a successful logout message
+        return {'message': f'User {username} logged out successfully'}, HTTPStatus.OK
+
+
+
 @auth_namespace.route('/logout/')
 class Logout(Resource):
     @jwt_required()
@@ -279,7 +332,7 @@ class UpdateUser(Resource):
 
         return {'message': 'User information updated successfully'}, HTTPStatus.OK
     
-@auth_namespace.route('/admin/update/<int:user_id>/')
+@auth_namespace.route('/admin/<int:user_id>/')
 class AdminUpdateUser(Resource):
     
     @auth_namespace.expect(admin_update_model)
@@ -288,9 +341,9 @@ class AdminUpdateUser(Resource):
         """Admin update user information"""
         # Here you should check if the current user is an admin
         username = get_jwt_identity()
-        user = User.query.filter_by(username=username).first()
+        admin = Admin.query.filter_by(username=username).first()
 
-        if not user or not user.is_admin:
+        if not admin:
             return {'message': 'Admins only'}, HTTPStatus.FORBIDDEN
 
         # Fetch the user to be updated from the database
@@ -303,7 +356,6 @@ class AdminUpdateUser(Resource):
         data = request.get_json()
 
         # Update the user's admin-related information
-        user.is_admin = data.get('is_admin', user.is_admin)
         user.is_verified = data.get('is_verified', user.is_verified)
         user.is_banned = data.get('is_banned', user.is_banned)
 
@@ -311,3 +363,22 @@ class AdminUpdateUser(Resource):
         user.save()
 
         return {'message': 'User information updated successfully'}, HTTPStatus.OK
+    
+    @auth_namespace.marshal_with(user_model)
+    @jwt_required()
+    def delete(self, user_id):
+        """Deleting User after banning them"""
+        username = get_jwt_identity()
+        admin = Admin.query.filter_by(username=username).first()
+
+        if not admin:
+            return {"message":"Your not authorized, Admin only"}, HTTPStatus.FORBIDDEN
+        
+        user = User.get_by_id(user_id)
+
+        if user.is_banned != True:
+            return {"message":"User not banned cannot be deleted"}, HTTPStatus.BAD_REQUEST
+        
+        user.delete()
+
+        return {"message":"User deleted Successfully"}, HTTPStatus.OK

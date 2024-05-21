@@ -7,8 +7,6 @@ from ...utils import db
 
 post_namespace = Namespace('post', description="Name of the post")
 
-
-
 post_model = post_namespace.model(
     'Post',{
         'id': fields.Integer(description='ID of the post'),

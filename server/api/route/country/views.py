@@ -1,6 +1,6 @@
 from flask_restx import Namespace, Resource, fields
 from ...models.enum import State, Country
-from ...models.users import User
+from ...models.admin import Admin
 from http import HTTPStatus
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -37,16 +37,27 @@ class CreateGetState(Resource):
     def post(self):
         """Creating new State"""
         username = get_jwt_identity()
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         data = country_namespace.payload
 
+        required_fields = ['name', 'country_id']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
+
+        country = data['country_id']
+        country_id = Country.query.filter_by(id=country).first()
+        if country_id is None:
+            return {"Message":"The Country don't exist"}, HTTPStatus.NOT_FOUND
+
         new_post = State(
-            name = data['name'],
-            country_id = data['country_id']
+            name = data['name'].lower(),
+            country_id = country_id.id
         )
 
         new_post.save()
@@ -63,9 +74,9 @@ class DelUpdateState(Resource):
         """Deleting State"""
         username = get_jwt_identity()
 
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         state = State.get_by_id(state_id)
@@ -90,15 +101,20 @@ class CreateGetCountry(Resource):
     def post(self):
         """Creating a new country"""
         username = get_jwt_identity()
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         data = country_namespace.payload
+        required_fields = ['name']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
 
         new_post = Country(
-            name = data['name']
+            name = data['name'].lower()
         )
 
         new_post.save()
@@ -114,9 +130,9 @@ class DelUpdateCountry(Resource):
         """Deleting a country"""
         username = get_jwt_identity()
 
-        current_user = User.query.filter_by(username=username).first()
+        current_user = Admin.query.filter_by(username=username).first()
 
-        if current_user is None or current_user.is_admin != 'admin':
+        if current_user is None or current_user.is_admin != True:
             return {"message": "You are not allowed"}, HTTPStatus.FORBIDDEN
         
         country = Country.get_by_id(country_id)

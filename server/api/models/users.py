@@ -14,7 +14,6 @@ class User(db.Model):
     image_file = db.Column(db.String(60), nullable=False, default='default.jpg')
     password_hash = db.Column(db.String(128))
     is_active = db.Column(db.Boolean(), default=False)
-    is_admin = db.Column(db.Boolean(), default=False)
     date_created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     is_verified = db.Column(db.Boolean(), default=False)
     is_banned = db.Column(db.Boolean(), default=False)
@@ -37,8 +36,13 @@ class User(db.Model):
         db.session.add(self)
         db.session.commit()
 
+    def update(self):
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
     @classmethod
     def get_by_id(cls, id):
         return cls.query.get_or_404(id)
-
-    

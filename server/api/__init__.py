@@ -3,6 +3,7 @@ from flask_restx import Api
 from .config.config import config_dict
 from .utils import db
 from .models.users import User
+from .models.admin import Admin
 from .models.post import Post
 from .models.enum import State, Category, Country, Type
 from .models.agreement import Agreement
@@ -41,7 +42,8 @@ def create_app(config=config_dict['dev']):
     def make_shell_context():
         return {
             'db': db, 
-            'User': User, 
+            'User': User,
+            'Admin': Admin, 
             'Post': Post,
             'State': State,
             'Country': Country,
