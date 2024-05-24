@@ -1,4 +1,5 @@
-from flask import Flask
+from flask import Flask, jsonify
+from werkzeug.exceptions import RequestEntityTooLarge
 from flask_restx import Api
 from .config.config import config_dict
 from .utils import db
@@ -55,5 +56,9 @@ def create_app(config=config_dict['dev']):
             'Review': Review,
             'Experience': Experience,
         }
+    
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_request_entity_too_large(error):
+        return jsonify({'message': 'File is too large. Maximum size is 5 MB.'}), 413
 
     return app

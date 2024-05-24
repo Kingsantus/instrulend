@@ -2,8 +2,6 @@
 from flask import url_for, current_app
 import secrets, os
 from PIL import Image
-from app import  mail
-from flask_mail import Message
 
 def save_picture(form_picture):
     random_hex = secrets.token_hex(8)

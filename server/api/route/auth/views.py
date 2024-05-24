@@ -7,7 +7,11 @@ from http import HTTPStatus
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, get_jwt
 from flask_login import logout_user
 from werkzeug.utils import secure_filename
+from ...models.enum import State, Country
 import os
+from .utils import is_email_valid, is_password_valid, is_phone_valid
+from .fille import allowed_file, save_picture
+from werkzeug.utils import secure_filename
 
 
 auth_namespace = Namespace('auth', description='A namespace for authentication')
@@ -48,11 +52,10 @@ user_model=auth_namespace.model(
         'first_name':fields.String(required=True, description='First name'),
         'last_name':fields.String(required=True, description='Last name'),
         'phonenumber':fields.String(required=True, description='Phone number'),
-        'country':fields.Integer(description='Country'),
+        'country_id':fields.Integer(description='Country'),
         'image_file':fields.String(description='Image file'),
         'is_active':fields.Boolean(description='Is active'),
-        'state':fields.Integer(description='State'),
-        'is_admin':fields.Boolean(description='Is admin'),
+        'state_id':fields.Integer(description='State'),
         'date_created':fields.String(description='Date created'),
         'is_verified':fields.Boolean(description='Is verified'),
         'is_banned':fields.Boolean(description='Is banned'),
@@ -71,8 +74,8 @@ user_update_model = auth_namespace.model(
         'first_name': fields.String(description='First name'),
         'last_name': fields.String(description='Last name'),
         'phonenumber': fields.String(description='Phone number'),
-        'country': fields.Integer(description='Country'),
-        'state': fields.Integer(description='State'),
+        'country_id': fields.Integer(description='Country'),
+        'state_id': fields.Integer(description='State'),
         'image_file': fields.String(description='Image file')
     }
 )
@@ -84,12 +87,6 @@ admin_update_model = auth_namespace.model(
     }
 )
 
-def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-    return '.' in filename and \
-        filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
 @auth_namespace.route('/signup/')
 class Signup(Resource):
     @auth_namespace.expect(signup_model)
@@ -98,11 +95,32 @@ class Signup(Resource):
         """Create a new user"""
         data = request.get_json()
 
+        required_fields = ['username', 'email', 'password', 'confirmPassword', 'phonenumber', 'first_name', 'last_name', 'country_id', 'state_id']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
+
         username = data.get('username')
         email = data.get('email')
+        if not is_email_valid(email):
+            return {"message":"Email address is not valid"}, HTTPStatus.BAD_REQUEST
         password = data.get('password')
+        if is_password_valid(password):
+            return {"message":"Password is not valid"}, HTTPStatus.BAD_REQUEST
         confirm_password = data.get('confirmPassword')
         phonenumber = data.get('phonenumber')
+        if not is_phone_valid(phonenumber):
+            return {"message":"Phone number is not valid"}, HTTPStatus.BAD_REQUEST
+        country_id = data.get('country_id')
+        country = Country.query.filter_by(id=country_id).first()
+        if not country:
+            return {"message":"Country not found"}, HTTPStatus.BAD_REQUEST
+        state_id = data.get('state_id')
+        state = State.query.filter_by(id=state_id).first()
+        if not state:
+            return {"message":"Country not found"}, HTTPStatus.BAD_REQUEST
+        
 
         # Check if passwords match
         if password != confirm_password:
@@ -116,6 +134,8 @@ class Signup(Resource):
         if User.query.filter_by(phonenumber=phonenumber).first():
             return {'message': 'Phone number already exists'}, HTTPStatus.BAD_REQUEST
         
+
+        
         # Create new user
         new_user = User(
             username=data.get('username'),
@@ -124,9 +144,8 @@ class Signup(Resource):
             firstname=data.get('first_name'),
             lastname=data.get('last_name'),
             phonenumber=data.get('phonenumber'),
-            country_id=data.get('country_id'),
-            state_id=data.get('state_id'),
-            is_admin=data.get('is_admin'),
+            country_id=country.id,
+            state_id=state.id,
         )
 
         new_user.save()
@@ -138,12 +157,21 @@ class Signup(Resource):
     @auth_namespace.expect(admin_model)
     @auth_namespace.marshal_with(admin_model)
     def post(self):
-        """Create a new user"""
+        """Create a new admin"""
         data = request.get_json()
+        required_fields = ['username', 'email', 'password', 'confirmPassword', 'first_name', 'last_name', 'is_admin']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
 
         username = data.get('username')
         email = data.get('email')
+        if not is_email_valid(email):
+            return {"message":"Email address is not valid"}, HTTPStatus.BAD_REQUEST
         password = data.get('password')
+        if not is_password_valid(password):
+            return {"message":"Password is not valid"}, HTTPStatus.BAD_REQUEST
         confirm_password = data.get('confirmPassword')
 
         # Check if passwords match
@@ -211,7 +239,7 @@ class Login(Resource):
 class Login(Resource):
     @auth_namespace.expect(login_model)
     def post(self):
-        """Authenticate user using JWT authentication"""
+        """Authenticate admin using JWT authentication"""
 
         data = request.get_json()
         required_fields = ['login', 'password']
@@ -245,7 +273,7 @@ class Login(Resource):
 class Logout(Resource):
     @jwt_required()
     def post(self):
-        """Log out user"""
+        """Log out admin"""
         username=get_jwt_identity()
 
         # Fetch the current user's data from the database
@@ -304,28 +332,35 @@ class UpdateUser(Resource):
     @jwt_required()
     def put(self):
         """Update a user"""
-        username=get_jwt_identity()
-        user=User.query.filter_by(username=username).first()
+        username = get_jwt_identity()
+        user = User.query.filter_by(username=username).first()
 
         if not user:
             return {'message': 'User not found'}, HTTPStatus.NOT_FOUND
 
-        data = request.get_json()
+        # Use request.form to get the form data and request.files to get the file
+        data = request.form
 
-        # Update the user's information
-        user.first_name = data.get('first_name', user.first_name)
-        user.last_name = data.get('last_name', user.last_name)
-        user.phonenumber = data.get('phonenumber', user.phonenumber)
-        user.country = data.get('country', user.country)
-        user.state = data.get('state', user.state)
+        # Validate required fields
+        required_fields = ['first_name', 'last_name', 'phonenumber', 'country_id', 'state_id']
+        missing_fields = [field for field in required_fields if not data.get(field)]
 
-        if 'image_file' in request.files:
-            file = request.files['image_file']
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-                user.image_file = filename  
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
+
+        # Update user data
+        user.first_name = data.get('first_name')
+        user.last_name = data.get('last_name')
+        user.phonenumber = data.get('phonenumber')
+        user.country_id = data.get('country_id')
+        user.state_id = data.get('state_id')
+
+        # Handle image file upload
+        file = request.files.get('image_file')
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            picture_fn = save_picture(file)
+            user.image_file = picture_fn
 
         # Commit the changes to the database
         user.save()
@@ -354,6 +389,12 @@ class AdminUpdateUser(Resource):
 
         # Get the JSON data from the request
         data = request.get_json()
+
+        required_fields = ['is_verified', 'is_banned']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return {"message": "Incomplete data", "missing_fields": missing_fields}, HTTPStatus.BAD_REQUEST
 
         # Update the user's admin-related information
         user.is_verified = data.get('is_verified', user.is_verified)

@@ -12,15 +12,17 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES=timedelta(minutes=60)
     JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY')
 
-    
-
 
 class DevConfig(Config):
     DEBUG = os.getenv('DEBUG')
     SQLALCHEMY_ECHO = os.getenv('SQLALCHEMY_ECHO')
     SQLALCHEMY_DATABASE_URI = 'sqlite:///'+os.path.join(BASE_DIR, 'db.sqlite')
     SQLALCHEMY_TRACK_MODIFICATIONS = os.getenv('SQLALCHEMY_TRACK_MODIFICATIONS')
-    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api', 'uploads')
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads', 'profiles')
+    UPLOAD_FOLDER_POST = os.path.join(BASE_DIR, 'uploads', 'posts')
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
 
 class TestConfig(Config):
     pass
