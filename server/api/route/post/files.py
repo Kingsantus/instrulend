@@ -18,7 +18,7 @@ def save_picture(file):
     picture_path = os.path.join(current_app.config['UPLOAD_FOLDER_POST'], picture_fn)
     
     # Ensure the upload folder exists
-    os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(current_app.config['UPLOAD_FOLDER_POST'], exist_ok=True)
     
     output_size = (800, 800)
     i = Image.open(file)

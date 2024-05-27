@@ -10,7 +10,7 @@ class Post(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     type_id = db.Column(db.Integer, db.ForeignKey('types.id'), nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    image_file = db.Column(db.String(60), nullable=False, default='default.jpg')
+    image_file = db.Column(db.String(60), nullable=False)
     available = db.Column(db.Boolean(), default=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     rented = db.relationship('Agreement', backref='author5', lazy=True)
@@ -22,6 +22,10 @@ class Post(db.Model):
     
     def save(self):
         db.session.add(self)
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
         db.session.commit()
 
     @classmethod

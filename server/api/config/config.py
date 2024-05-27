@@ -25,10 +25,26 @@ class DevConfig(Config):
 
 
 class TestConfig(Config):
-    pass
+    TESTING = True
+    SQLALCHEMY_ECHO = os.getenv('SQLALCHEMY_ECHO')
+    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    SQLALCHEMY_TRACK_MODIFICATIONS = os.getenv('SQLALCHEMY_TRACK_MODIFICATIONS')
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads', 'profiles')
+    UPLOAD_FOLDER_POST = os.path.join(BASE_DIR, 'uploads', 'posts')
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
 
 class ProdConfig(Config):
-    pass
+    DEBUG = os.getenv('DEBUG')
+    SQLALCHEMY_ECHO = os.getenv('SQLALCHEMY_ECHO')
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///'+os.path.join(BASE_DIR, 'db.sqlite')
+    SQLALCHEMY_TRACK_MODIFICATIONS = os.getenv('SQLALCHEMY_TRACK_MODIFICATIONS')
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads', 'profiles')
+    UPLOAD_FOLDER_POST = os.path.join(BASE_DIR, 'uploads', 'posts')
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
 
 config_dict={
     'dev':DevConfig,

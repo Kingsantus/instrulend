@@ -12,6 +12,7 @@ import os
 from .utils import is_email_valid, is_password_valid, is_phone_valid
 from .fille import allowed_file, save_picture
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import Conflict
 
 
 auth_namespace = Namespace('auth', description='A namespace for authentication')
@@ -135,20 +136,22 @@ class Signup(Resource):
             return {'message': 'Phone number already exists'}, HTTPStatus.BAD_REQUEST
         
 
-        
-        # Create new user
-        new_user = User(
-            username=data.get('username'),
-            email=data.get('email'),
-            password_hash=generate_password_hash(data.get('password')),
-            firstname=data.get('first_name'),
-            lastname=data.get('last_name'),
-            phonenumber=data.get('phonenumber'),
-            country_id=country.id,
-            state_id=state.id,
-        )
+        try:
+            # Create new user
+            new_user = User(
+                username=data.get('username'),
+                email=data.get('email'),
+                password_hash=generate_password_hash(data.get('password')),
+                firstname=data.get('first_name'),
+                lastname=data.get('last_name'),
+                phonenumber=data.get('phonenumber'),
+                country_id=country.id,
+                state_id=state.id,
+            )
 
-        new_user.save()
+            new_user.save()
+        except Exception as e:
+            raise Conflict(f"User exists, try another email, phone number and username")
 
         return new_user, HTTPStatus.CREATED
     

@@ -3,8 +3,7 @@ from ...models.messages import Chat, Message
 from ...models.users import User
 from http import HTTPStatus
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
-from ...utils import db
+from ... import socketio
 
 
 message_namespace = Namespace('message', description='Message namespace')
@@ -154,6 +153,8 @@ class CreateMessage(Resource):
 
         message.save()
 
+        socketio.emit('new_message', data, broadcast=True)
+
         return message, HTTPStatus.CREATED
 
 
@@ -273,6 +274,8 @@ class GetUpdateDeleteMessage(Resource):
         message.content = data['content']
 
         message.update()
+
+        socketio.emit('new_message', data, broadcast=True)
 
         return message, HTTPStatus.OK
     
