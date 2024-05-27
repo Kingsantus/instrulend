@@ -29,6 +29,8 @@ def create_app(config=config_dict['dev']):
 
     migrate = Migrate(app, db)
 
+    socketio = SocketIO(app, cors_allowed_origins="*")
+
     authorizations = {
         "Bearer Auth":{
             "type": "apiKey",
@@ -44,8 +46,6 @@ def create_app(config=config_dict['dev']):
         authorizations=authorizations,
         security="Bearer Auth"
     )
-
-    socketio = SocketIO(app, cors_allowed_origins="*")
 
     api.add_namespace(auth_namespace, path='/auth')
     api.add_namespace(category_namespace, path='/v1')
@@ -108,4 +108,3 @@ def create_app(config=config_dict['dev']):
         }
     
     return app, socketio
-
