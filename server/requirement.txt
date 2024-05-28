@@ -18,6 +18,7 @@ flask-swagger-ui==4.11.1
 greenlet==3.0.3
 h11==0.14.0
 importlib_resources==6.4.0
+iniconfig==2.0.0
 itsdangerous==2.2.0
 Jinja2==3.1.4
 jsonschema==4.22.0
@@ -27,7 +28,9 @@ MarkupSafe==2.1.5
 marshmallow==3.21.2
 packaging==24.0
 pillow==10.3.0
+pluggy==1.5.0
 PyJWT==2.8.0
+pytest==8.2.1
 python-dotenv==1.0.1
 python-engineio==4.9.0
 python-socketio==5.11.2

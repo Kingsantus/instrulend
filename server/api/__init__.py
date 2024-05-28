@@ -18,10 +18,12 @@ from .route.review.views import review_namespace
 from .route.socketio.views import message_namespace
 from .route.country.views import country_namespace
 from .route.category.views import category_namespace
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
+from flask_cors import CORS
 
-def create_app(config=config_dict['dev']):
+def create_app(config=config_dict['prod']):
     app=Flask(__name__)
+    CORS(app, supports_credentials=True)
 
     app.config.from_object(config)
 
